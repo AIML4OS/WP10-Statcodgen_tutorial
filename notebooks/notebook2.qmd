@@ -1,0 +1,205 @@
+---
+title: "Lear to use PromptMaker"
+format: ipynb
+jupyter: python3
+---
+
+## Objective
+In this notebookook, we will learn how to use statcodgen from: automatically create prompts and generate synt data.
+
+
+## Prompt Maker
+
+This section explains how to use the PromptSyntDataMaker class with prompt templates and parameters. The application focuses on the NACE classification and demonstrates how you can create your own customized application.
+
+### PromptMaker
+This abstract class is responsible for constructing and populating prompt templates.
+
+```{python}
+from statcodgen import PromptMaker
+
+prompt_template = 'Hi. [intro], [question]' # The class will examine patterns such as '-' or '[-]', as in the example.
+
+# All keys specified in the prompt template must be provided (in this case, question and introduction).
+values = {
+    "intro": "Who are you?",
+    "question": "Do you know where the nearest supermarket is?"
+}
+
+# print(help(PromptMaker))
+
+prompt_basic = PromptMaker(
+        prompt_template=prompt_template,
+        plh_replace_map_dict=values,
+        gap_ph_pattern='[-]' # Patterns must be specified using the open delimiter - close delimiter format.
+)
+# print(help(prompt_basic))
+print(prompt_basic.fill_prompt()) # This main method fills the placeholders using the provided dictionary.
+```
+
+### PromptSyntDataMaker
+This class implements the generation of synthetic data to train an AI model that classifies text according to the NACE standard. The prompt-making strategy uses nested templates and parameter dictionaries to generate synthetic data based on the explanatory notes of the standard.
+
+To run the code above, your project root directory must have the following structure:
+```
+ root (dir):
+    input (dir):
+        *repository's all templates in synt_data_maker/input*
+```
+Or approach divide the prompt in three parts:
+- **body**: where the role (body_intro), task (task), and output parameters (body_param) are defined.
+    - input/body_template.json: basic template for writing the body.
+    - input/body_param_template.json: basic template of the body parameters.
+- **example**: where an example of the task is added.
+    - input/example_template.json: basic template for writing the example.
+- **objetive**: where the explanatory note is added.
+    - input/objetive_template.json: basic template for writing the objective.
+
+```{python}
+from statcodgen import PromptSyntDataMaker
+from pathlib import Path
+
+root_path = Path.home()/"work"/"data"
+prompt_synt = PromptSyntDataMaker(
+    root = root_path
+)
+prompt_template = prompt_synt.join_templates('[body]\n[example]\n[objetive]')
+print('\nPrompt template\n',prompt_template)
+```
+
+There are nine placeholders to fill in the template. Five must be provided by the user, and four are parameterized.
+1) **body_intro** (free text): Here, you must define the role of the model.
+
+2) **task** (parameterized):
+    - *generate*: Instructs the model to generate new sentences that fit a given description.
+    - *process*: Instructs the model to extract all examples of economic activities included in a description.
+    - *combine*: Instructs the model to generate new sentences that fit the description using specific keywords.
+3) **language** (parameterized): Indicates the language in which the synthetic output data must be written.
+    - *sp*: Generate sentences in Spanish.
+    - *en*: Generate sentences in English.
+    - *nb*: Generate sentences in Norwegian Bokmål.
+4) **number** (free text): Number of examples the model must generate.
+5) **len_constraint** (parameterized): Sentence length constraint.
+    - *short*: Between 1–5 words.
+    - *medium*: Between 5–15 words.
+    - *long*: More than 15 words.
+6) **output_format** (parameterized): Output format.
+    - *lines*: Sentences must be separated by line breaks.
+7) **example** (free text): An example of the expected output.
+8) **description** (free text): Explanatory note.
+9) **key_words** (free text, list format): A list of keywords. Do not include this parameter unless the task is *combine*.
+
+```{python}
+example = '''
+Description:
+Rice cultivation.
+
+Key words:
+['plantation', 'brown', 'rice', 'basmati']
+
+Output:
+Rice plantation.
+Rice cultivation.
+Brown rice plantation.
+Basmati rice plantation.
+Brown rice cultivation.
+'''
+print(
+    prompt_synt.write_prompt(
+        body_intro = 'You are an expert in NACE classification',
+        task = 'combine',
+        language = 'sp',
+        len_constraint = 'short',
+        number = '5',
+        output_format = 'lines',
+        example = example,
+        description = 'banana cultivation',
+        key_words = '[banana, cultivation, plantation]'
+    )
+)
+
+# You can remove any parameter by setting it to `None`, which will remove the corresponding sentences from the prompt.
+print(
+    prompt_synt.write_prompt(
+        body_intro = None,
+        task = 'process',
+        language = None,
+        len_constraint = None,
+        number = None,
+        output_format = 'lines',
+        example = None,
+        description = 'banana cultivation',
+        key_words = None
+    )
+)
+```
+
+#### Make your own approach
+All {name}_template.json documents in the input directory share the same structure:
+``` python
+{
+"en": "This is an example [gap_to_fill_with_another_template], **gap_to_fill_with_str**",
+"sp": "Esto es un ejemplo [gap_to_fill_with_another_template], **gap_to_fill_with_str**",
+"{lang}": "{prompt_template}"
+}
+```
+For example, PromptSyntDataMaker requires the following inputs:
+```python
+prompt_synt = PromptSyntDataMaker(
+    root=None,
+    name_root_template='prompt',
+    name_param_dict='input/param_dict.json',
+    prompt_lang='en',  # Indicates the language of the prompt
+    template_pattern='[-]',  # Pattern used to identify nested templates
+    gap_ph_pattern='**-**'  # Pattern used to identify text placeholders
+)
+```
+In this case, the class retrieves the 'en' key from prompt_template.json, which must be located in the root/input directory. It then starts an iterative process to identify all text enclosed in [] and loads the corresponding 'en' templates from JSON files named {text}_template.json.
+
+ For more information (see this tutorial)[https://github.com/AIML4OS/WP10_Cluster1_StatCodGen/blob/setup_libary_for_tutorial/jupyter_notebooks/synt_data_maker_tutorial.ipynb]
+
+# Process explicative notes from a standard
+The aim of this class is to prepare the explicative notes of a standard for generating a dict with the notes and examples and key words.
+```{python}
+# First generate a subclass from porcess Notes defining oyut own prepocess_text method
+from statcodgen import NotesProcess
+import re
+from pprint import pprint
+import pandas as pd
+
+class MyStandardProcessor(NotesProcess):
+    @staticmethod
+    def preprocess_text(text: str) -> str:
+        text = text.lower()
+        text = re.sub(r"\s+", " ", text).strip()
+        return text
+
+notes_df = pd.DataFrame({
+    "code": ["A", "B"],
+    "title": ["Agriculture", "Mining"],
+    "notes": ["Explanatory note A...", "Explanatory note B..."]
+})
+
+examples_df = pd.DataFrame({
+    "code": ["A", "A", "B"],
+    "example": ["Crop farming", "Animal breeding", "Coal extraction"],
+    "keywords": ["farm crops", "cattle breeding", "coal mine"]
+})
+
+processor = MyStandardProcessor(
+    notes_df=notes_df,
+    examples_df=examples_df,
+    n_examples=10  # Maximum number of examples and keywords to extract from examples_df
+)
+
+notes_dict = processor.get_dict_data(
+    col_notes_c="code",
+    col_notes_d_l=["title", "notes"],
+    col_eg_c="code",       # Column in examples_df containing the code
+    col_eg_d="example",    # Column in examples_df containing the examples
+    col_eg_k="keywords"    # Column in examples_df containing the keywords
+)
+pprint(notes_dict)
+```
+
+This will be used to fill in prompt placeholders in an automated pipeline.

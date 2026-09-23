@@ -1,0 +1,86 @@
+---
+title: "Make Zerogen synt data"
+format: ipynb
+jupyter: python3
+---
+
+## Objetive
+Learn to use synt data maker
+ 
+## Generate Synthetic Data for Your Classification
+
+This class encapsulates the full pipeline for generating synthetic data following our strategy. It is designed to receive a data dictionary and iteratively query a model via the API using `PromptSyntDataMaker`.
+
+It is optimized to work with our templates and can be adapted to any classification task.
+
+```{python}
+from pathlib import Path
+import pandas as pd
+from statcodgen import ProcessNACENB
+from statcodgen import OnyxiaSyntDataGenerator
+
+path = Path.home()/"work"/"data"
+exp_notes_n = "NACErev21_explanatory_notes.csv"
+train_data = "train_norwaydata_2026-01-13.parquet"
+
+model = "qwen3-6-35b-moe"
+YOUR_API_KEY = "sk-44fee8794a2b4e87b94b4e9e073bebf5"
+
+### First generate de dict for Nace (onli divisions)
+nace_explanatory_notes_df = pd.read_csv(
+    path/exp_notes_n,
+    dtype=str
+)
+nace_explanatory_notes_df = nace_explanatory_notes_df[nace_explanatory_notes_df["NIVEL"]=="4"]
+
+# Preprocess data for put examples
+examples_data_df = pd.read_parquet(
+    path/train_data,
+)
+examples_data_df = examples_data_df[
+    ['nace_21_code', 'company_activity']
+]
+examples_data_df['nace_21_code'] = examples_data_df['nace_21_code'].apply(lambda c: c.replace(".", ""))
+
+process_nb = ProcessNACENB(
+    notes_df=nace_explanatory_notes_df,
+    sample=3,  # Take only three classes
+    random_state=23,  # For reproducibility
+    examples_df=examples_data_df,  # Initially use the index to extract keywords
+    n_examples=10  # Number of real examples and keyword-based examples
+)
+process_nb.set_descriptions(
+    col_c='COD',
+    col_d_l=["TITULO", "NOTA1", "NOTA2"]
+)
+
+process_nb.set_examples(
+    col_c='nace_21_code',
+    col_d='company_activity'
+)
+
+nace_nb_dict = process_nb.get_dict_data()
+
+### Finally we use OnyxiaSyntDataGenerator for generate the ZeroGen data
+generator = OnyxiaSyntDataGenerator(
+    root=path,  # Project root (must contain the ./input/ directory with all .json templates)
+    api_key=YOUR_API_KEY,  # Onyxia API key
+    model=model,  # Available Onyxia model name
+    label_contents_map_dict=nace_nb_dict,
+
+    body_intro="You are an expert in Nace statistical classification.",  # Free text
+    task="generate",  # Task type: generate (create new data from notes), process (extract examples from text), combine (generate examples using notes and keywords)
+    n_responses='10',  # Number of generated examples per label
+
+    p_lang="en",  # Prompt template language (en or sp)
+    o_lang="en",  # Requested output language (en, sp, or nb)
+    output_format="lines",  # Output format: examples separated by line breaks
+    len_constraint="medium",  # Output length constraint (short, medium, or long)
+
+    eg_strategy="dynamic",  # Example strategy: static, dynamic, or mixed
+    eg_filename="static_examples.json"  # Filename for static examples (if used)
+)
+
+zero_gen_df = generator.get_synt_data_df()
+zero_gen_df.head()
+```
