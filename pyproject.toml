@@ -10,4 +10,8 @@ dependencies = [
     "matplotlib>=3.10.3",
     "pandas>=2.3.0",
     "polars>=1.30.0",
+    "statcodgen",
 ]
+
+[tool.uv.sources]
+statcodgen = { git = "https://github.com/AIML4OS/WP10_Cluster1_StatCodGen.git", rev = "v1.0.0" }
