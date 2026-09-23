@@ -1,82 +1,92 @@
 ---
-title: "Quarto Basics"
-format: ipynb # This qmd file will be compiled as a jupyter notebook
+title: "Use Strucutred"
+format: ipynb
 jupyter: python3
 ---
 
+## Objective
+In this chapter, we will learn how to prepare a Structure instance for our target classification standard.
 
-## A beautiful figure
 
-This chunk shows how you can produce a beautiful figure.
+## Create a subclass Structure for your classification.
+
+Statcogen’s Structured abstract class allows you to process hierarchical structures as a basis for training an NLP model. To adapt it to your classification, create a subclass that implements at least the get_level method. The following example shows how to create a subclass of Structured for the NACE classification. See the Structured.get_level documentation for guidance on implementing your own get_level method.
 
 ```{python}
-#| label: fig-polar
-#| fig-cap: "A line plot on a polar axis"
+from statcodgen import Structured
 
-import numpy as np
-import matplotlib.pyplot as plt
+print(help(Structured.get_level))
 
-r = np.arange(0, 2, 0.01)
-theta = 2 * np.pi * r
-fig, ax = plt.subplots(
-  subplot_kw = {'projection': 'polar'} 
-)
-ax.plot(theta, r)
-ax.set_rticks([0.5, 1, 1.5, 2])
-ax.grid(True)
-plt.show()
+
+class StructuredNACE(Structured):
+    """ Structured subclass for NACE """
+    def get_level(self, code):
+        code = code.replace(".", "")
+        return (len(code)-1)
+
 ```
 
-## A beautiful dataframe
+## Load a standard classification from Eurostat’s RDF endpoint
 
-This section demonstrates how to create and display a simple pandas DataFrame.
+Eurostat provides an RDF endpoint for retrieving the structure and explanatory notes of various official statistical classifications. See the [SPARQL queries user guide](https://cros.ec.europa.eu/book-page/sparql-queries-user-guide) for more information. 
+
+The query must return a table with three columns: code, title, and parent code. See the following example.
 
 ```{python}
-#| label: tbl-pandas
-#| tbl-cap: "Simple pandas DataFrame"
+# Obtaining NACE rev.2 structure
+endpoint = "https://publications.europa.eu/webapi/rdf/sparql"
 
+query = """
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX : <http://data.europa.eu/ux2/nace2/>
+
+SELECT ?code ?label_es ?Broader_code WHERE {
+?s a skos:Concept ;
+  skos:inScheme :nace2 ;
+     skos:prefLabel ?label_es ;
+    skos:notation ?notation .
+    OPTIONAL {?s skos:broader ?BT.  
+      ?BT skos:notation ?BT_notation .}
+        FILTER(lang(?label_es)='es')
+    BIND (STR(?notation) as ?code)
+    BIND (STR(?BT_notation) as ?Broader_code)
+}order by ?code
+"""
+
+# See Stuctured docstring for know the Strcutured's parameters
+print(help(Structured))
+
+structure_nace = StructuredNACE(
+    source="sparql_endpoint", 
+    sparql_endpoint =endpoint,
+    query=query,
+    ensure_garbage_class=False,
+    names_l=["Section", "Division", "Group", "Class"]
+)
+```
+
+## Load a structure from a DataFrame
+
+You can also create a structure instance from a pandas DataFrame. The DataFrame must contain two columns: one with the codes and another with their corresponding titles. The column names do not matter, but the rows must be sorted in hierarchical order.
+
+```{python}
 import pandas as pd
+from pathlib import Path
 
-data = {
-    "Name": ["Alice", "Bob", "Charlie"],
-    "Age": [25, 30, 35],
-    "City": ["Paris", "Dublin", "Berlin"]
-}
-
-df = pd.DataFrame(data)
-df
-```
-
-## A more sophisticated table
-
-This section demonstrates how to create and display a simple pandas DataFrame.
-
-```{python}
-from great_tables import GT, html
-from great_tables.data import sza
-import polars as pl
-from polars import col as c
-import polars.selectors as cs
-
-sza_pivot = (
-    pl.from_pandas(sza)
-    .filter((c.latitude == "20") & (c.tst <= "1200"))
-    .select(pl.col("*").exclude("latitude"))
-    .drop_nulls()
-    .pivot(values="sza", index="month", on="tst", sort_columns=True)
+struc_path = Path.home()/"work" / "data" / "NACErev21_structure.xlsx"
+structure_df = pd.read_excel(
+    struc_path,
+    dtype="str"
 )
 
-(
-    GT(sza_pivot, rowname_col="month")
-    .data_color(
-        domain=[90, 0],
-        palette=["rebeccapurple", "white", "orange"],
-        na_color="white",
-    )
-    .tab_header(
-        title="Solar Zenith Angles from 05:30 to 12:00",
-        subtitle=html("Average monthly values at latitude of 20&deg;N."),
-    )
-    .sub_missing(missing_text="")
+print(structure_df.head())
+structure_nace = structure_nace = StructuredNACE(
+    source="dataframe",
+    structure_df=structure_df,
+    query=query,
+    ensure_garbage_class=False,
+    names_l=["Section", "Division", "Group", "Class"]
 )
 ```

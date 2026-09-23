@@ -20,6 +20,8 @@ mc alias set s3sspcloud https://minio.lab.sspcloud.fr "" ""
 FILES=(
   "s3sspcloud/projet-aiml4os-wp10/NorwayData/train_norwaydata_2026-01-13.parquet"
   "s3sspcloud/projet-aiml4os-wp10/NorwayData/test_norwaydata_2026-01-13.parquet"
+  "s3sspcloud/andresjp/WP10-Statcodgen_tutorial/NACErev21_explanatory_notes.csv"
+  "s3sspcloud/andresjp/WP10-Statcodgen_tutorial/NACErev21_structure.xlsx"
 )
 
 # Function to download with retry
@@ -49,3 +51,10 @@ for FILE in "${FILES[@]}"; do
     echo "Downloading $FILE to $DEST_DIR..."
     download_file "$FILE" "$DEST_DIR"
 done
+
+# Download the contents of the input folder
+mkdir -p "$DEST_DIR/input"
+
+mc cp --recursive \
+    "s3sspcloud/andresjp/WP10-Statcodgen_tutorial/input/" \
+    "$DEST_DIR/input/"

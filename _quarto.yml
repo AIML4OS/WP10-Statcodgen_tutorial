@@ -2,8 +2,6 @@ project:
   type: website
   execute-dir: project
   render: # Add HERE new chapters and new notebooks
-    - index.qmd
-    - chapters/chapter1.qmd
     - notebooks/notebook1.qmd
 
 website:
@@ -16,13 +14,9 @@ website:
   site-url: "https://AIML4OS.github.io/WP10-Statcodgen_tutorial"
   repo-url: "https://github.com/AIML4OS/WP10-Statcodgen_tutorial"
   repo-actions: [edit, source, issue]
-  sidebar:
-    search: true
-    contents: # Add HERE new chapters (but not the notebooks)
-      - href: index.qmd
-        text: Introduction
-      - href: chapters/chapter1.qmd
-        text: A complete example
+  #sidebar:
+    #search: true
+    #contents: # Add HERE new chapters (but not the notebooks)
 
 format:
   html:
