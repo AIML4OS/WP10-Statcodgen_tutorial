@@ -24,7 +24,7 @@ exp_notes_n = "NACErev21_explanatory_notes.csv"
 train_data = "train_norwaydata_2026-01-13.parquet"
 
 model = "qwen3-6-35b-moe"
-YOUR_API_KEY = "sk-44fee8794a2b4e87b94b4e9e073bebf5"
+YOUR_API_KEY = "" # put your SSPCloud api key
 
 ### First generate de dict for Nace (onli divisions)
 nace_explanatory_notes_df = pd.read_csv(
@@ -81,6 +81,40 @@ generator = OnyxiaSyntDataGenerator(
     eg_filename="static_examples.json"  # Filename for static examples (if used)
 )
 
+zero_gen_df = generator.get_synt_data_df()
+zero_gen_df.head()
+```
+
+You can adapt the code to your API by subclassing SyntDataGenerator and implementing the API call method.
+```{python}
+from statcodgen import SyntDataGenerator
+
+help(SyntDataGenerator.api_call)
+
+class DummySyntDataGenerator(SyntDataGenerator):
+    def api_call(self, prompt):
+        if self.api_key is not None:
+            return ("This is the llm response")
+        raise ValueError("api_key must be be setted")
+
+generator = DummySyntDataGenerator(
+    root=path,  # Project root (must contain the ./input/ directory with all .json templates)
+    api_key=YOUR_API_KEY,  # Onyxia API key
+    model=model,  # Available Onyxia model name
+    label_contents_map_dict=nace_nb_dict,
+
+    body_intro="You are an expert in Nace statistical classification.",  # Free text
+    task="generate",  # Task type: generate (create new data from notes), process (extract examples from text), combine (generate examples using notes and keywords)
+    n_responses='10',  # Number of generated examples per label
+
+    p_lang="en",  # Prompt template language (en or sp)
+    o_lang="en",  # Requested output language (en, sp, or nb)
+    output_format="lines",  # Output format: examples separated by line breaks
+    len_constraint="medium",  # Output length constraint (short, medium, or long)
+
+    eg_strategy="dynamic",  # Example strategy: static, dynamic, or mixed
+    eg_filename="static_examples.json"  # Filename for static examples (if used)
+)
 zero_gen_df = generator.get_synt_data_df()
 zero_gen_df.head()
 ```
