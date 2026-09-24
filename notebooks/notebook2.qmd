@@ -156,7 +156,7 @@ prompt_synt = PromptSyntDataMaker(
 ```
 In this case, the class retrieves the 'en' key from prompt_template.json, which must be located in the root/input directory. It then starts an iterative process to identify all text enclosed in [] and loads the corresponding 'en' templates from JSON files named {text}_template.json.
 
- For more information (see this tutorial)[https://github.com/AIML4OS/WP10_Cluster1_StatCodGen/blob/setup_libary_for_tutorial/jupyter_notebooks/synt_data_maker_tutorial.ipynb]
+ For more information [see this tutorial](https://github.com/AIML4OS/WP10_Cluster1_StatCodGen/blob/setup_libary_for_tutorial/jupyter_notebooks/synt_data_maker_tutorial.ipynb)
 
 # Process explicative notes from a standard
 The aim of this class is to prepare the explicative notes of a standard for generating a dict with the notes and examples and key words.
