@@ -1,0 +1,200 @@
+---
+title: "Full pipe-line demo"
+format: ipynb
+jupyter: python3
+---
+
+## Objetive
+This demo shows how to build a complete pipeline to generate synthetic training data using a ZeroGen approach and train a classification model, starting from the classification’s explanatory notes.
+
+To demonstrate the tool’s multilingual capabilities, we will train a model to classify Norwegian text using synthetic data generated from English prompts and Spanish explanatory notes.
+
+This is a demonstration, so the model will classify texts into just three class-level categories.
+## Avaliable data
+For this classification problem we have the next avaliable data.
+- **"organic" train and test data**: A set of administrative records from the norwiang institutios
+- **spanish structure and explanatory notes in spanish**
+- **Norweiang index based test set**
+## DEMO
+```{python}
+from pathlib import Path
+import pandas as pd
+from pprint import pprint
+
+from statcodgen import Structured
+from statcodgen import CodifierFastText
+from statcodgen import OnyxiaSyntDataGenerator
+from statcodgen import ProcessNACENB
+```
+
+### Prepare data
+```{python}
+##### LOAD DATA
+path = Path.home()/"work"/"data"
+organic_test_data = "test_norwaydata_2026-01-13.parquet"
+orgnaic_train_data = "train_norwaydata_2026-01-13.parquet"
+index_test_set = "sample_index_entries nb.xlsx"
+nace_esp_structure = "NACErev21_structure.xlsx"
+nace_esp_explanatory_notes = "NACErev21_explanatory_notes.csv"
+
+nace_stru_df = pd.read_excel(
+    path/nace_esp_structure,
+    dtype=str
+)
+nace_exp_notes_df = pd.read_csv(
+    path/nace_esp_explanatory_notes,
+    dtype=str
+)
+train_df = pd.read_parquet(
+    path/orgnaic_train_data
+)
+test_df = pd.read_parquet(
+    path/organic_test_data
+)
+idex_test_df = pd.read_excel(
+    path/index_test_set,
+    dtype=str
+)
+
+#### PREPARE TRAIN
+train_df = train_df[
+    ["nace_21_code", "company_activity"]
+]
+train_df["nace_21_code"] = train_df["nace_21_code"].apply(
+    lambda c: c.replace(".", "")
+)
+#### PREPARE TEST
+test_df["nace_21_code"] = test_df["nace_21_code"].apply(
+    lambda c: c.replace(".", "")
+)
+test_df = test_df[
+    ["nace_21_code", "company_activity"]
+]
+test_df["source"] = "ID"
+
+idex_test_df["KODE"] = idex_test_df["KODE"].apply(
+    lambda c: c.replace(".", "")
+)
+idex_test_df.columns = ["nace_21_code", "company_activity"]
+idex_test_df["source"] = "OOD"
+
+test_df = pd.concat([test_df, idex_test_df])
+
+##### TAKE A SAMPLE
+codes = train_df["nace_21_code"].dropna().drop_duplicates().sample(n=3, random_state=42)
+sample_train_df = train_df[train_df["nace_21_code"].isin(codes)].copy()
+sample_test_df = test_df[test_df["nace_21_code"].isin(codes)].copy()
+```
+
+### Train a classic ft_model
+```{python}
+##### PREPARE STRUCTURE INSTANCE AND PREPROCESS FUNCTION
+
+class StruturedNACE(Structured):
+    def get_level(self, c):
+        c = c.replace(".", "")
+        return len(c)-1
+
+
+struc_nace = StruturedNACE(
+    structure_df=nace_stru_df,
+    names_l=[
+        "Section", "Division", "Group", "Class"
+    ]
+)
+def preprocess_text(t):
+    if pd.isna(t):
+        t = ""
+    return t.lower()
+
+##### TRAIN AND EVALUATE A FT MODEL
+
+ft_codifier = CodifierFastText(
+    root_path=path,
+    structure_instance=struc_nace,
+    train_df=sample_train_df,
+    test_df=sample_test_df,
+    preprocess=preprocess_text
+)
+
+ft_codifier.train()
+
+metrics = ft_codifier.evaluate(get_curve=False, k=2)
+metrics_id = ft_codifier.evaluate(get_curve=False, source="ID", k=2)
+metrics_ood = ft_codifier.evaluate(get_curve=False, source="OOD", k=2)
+
+
+print("\nMETRICS FOR ALL TEST SET")
+pprint(metrics["Class"])
+print("\nMETRICS FOR ID TEST SET")
+pprint(metrics_id["Class"])
+print("\nMETRICS FOR OOD TEST SET")
+pprint(metrics_ood["Class"])
+```
+
+### Prepare a ZeroGem train set
+```{python}
+#### PREPARE DICTIONARY WITH EXPLANATORY NOTES AND EXAMPLES
+process_nb = ProcessNACENB(
+    notes_df=nace_exp_notes_df,
+    sample=3,  # Take only three classes
+    random_state=23,  # For reproducibility
+    examples_df=train_df,  # Initially use the index to extract keywords
+    n_examples=4  # Number of real examples and keyword-based examples
+)
+process_nb.set_descriptions(
+    col_c='COD',
+    col_d_l=["TITULO", "NOTA1", "NOTA2"]
+)
+
+process_nb.set_examples(
+    col_c='nace_21_code',
+    col_d='company_activity'
+)
+
+nace_nb_dict = process_nb.get_dict_data()
+print("DATA DICT")
+pprint(nace_nb_dict["1626"])
+##### SET OnyxiaSyntDataGenerator
+API_KEY = "sk-44fee8794a2b4e87b94b4e9e073bebf5"
+model = "qwen3-6-35b-moe"
+
+generator = OnyxiaSyntDataGenerator(
+    root=path,  # Project root (must contain the ./input/ directory with all .json templates)
+    api_key=API_KEY,  # Onyxia API key
+    model=model,  # Available Onyxia model name
+    label_contents_map_dict=nace_nb_dict,
+    n_responses='10',  # Number of generated examples per label
+    p_lang="en",  # Prompt template language (en or sp)
+    o_lang="nb",  # Requested output language (en, sp, or nb)
+    output_format="lines",  # Output format: examples separated by line breaks
+    eg_filename="static_examples.json"  # Filename for static examples (if used)
+)
+
+##### PREPARE TASK FOR GENERATE ID DATA
+body_intro = ["You are a company describing its economic activity without any knowledge of NACE"]*6
+example=["dynamic"]*6
+task = ["generate", "process"]*3
+len_constraint = ["short", "medium", "long"]*2
+all_id_task = list(zip(body_intro, task, len_constraint, example))
+
+##### PREPARE TASK FOR GENERATE OOD DATA
+body_intro = ["You are an expert in NACE classification"]*6
+example=["static"]*6
+all_ood_task = list(zip(body_intro, task, len_constraint, example))
+
+all_task = all_id_task + all_ood_task
+
+#### GENERATE DATA
+synt_train_df = pd.DataFrame()
+for intro, task, leng, eg in all_task:
+    generator.prompt_fields.update(
+        {
+            'body_intro': intro,
+            'task': task,
+            'len_constraint': leng
+        }
+    )
+    generator.eg_strategy = eg
+    synt_df = generator.get_synt_data_df()
+    synt_train_df=pd.concat([synt_train_df, synt_df])

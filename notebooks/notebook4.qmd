@@ -1,0 +1,92 @@
+---
+title: "Train models with statcodgen"
+format: ipynb
+jupyter: python3
+---
+
+## Objetive
+Learn to train models with statcodgen
+ 
+### Prepare data
+
+Statcodgen provide two clases for train models, CodifierFastText and CodifierBERT.
+
+```{python}
+from statcodgen import Structured
+from statcodgen import CodifierFastText
+from statcodgen.codifier_bert import CodifierBERT
+from pathlib import Path
+import pandas as pd
+```
+
+Train and test set must have, in this order, two colunms, code and text.
+```{python}
+# load and prepare data
+path = Path.home()/"work"/"data"
+test_data = "test_norwaydata_2026-01-13.parquet"
+train_data = "train_norwaydata_2026-01-13.parquet"
+structure_data = "NACErev21_structure.xlsx"
+
+nace_stru_df = pd.read_excel(
+    path/structure_data,
+    dtype=str
+)
+train_df = pd.read_parquet(
+    path/train_data
+)
+test_df = pd.read_parquet(
+    path/test_data
+)
+
+train_df = train_df[
+    ["nace_21_code", "company_activity"]
+]
+test_df = test_df[
+    ["nace_21_code", "company_activity"]
+]
+train_df["nace_21_code"] = train_df["nace_21_code"].apply(
+    lambda c: c.replace(".", "")
+)
+test_df["nace_21_code"] = test_df["nace_21_code"].apply(
+    lambda c: c.replace(".", "")
+)
+```
+
+## Prepare stucutre a text prepoceser
+```{python}
+# Prepare strucuture instance
+class StruturedNACE(Structured):
+    def get_level(self, c):
+        c = c.replace(".", "")
+        return len(c)-1
+
+struc_nace = StruturedNACE(
+    structure_df=nace_stru_df,
+    names_l=[
+        "Section", "Division", "Group", "Class"
+    ]
+)
+# defining basic preproceser
+def preprocess_text(t):
+    if pd.isna(t):
+        t = ""
+    return t.lower()
+```
+## Train model
+```{python}
+ft_trainer = CodifierFastText(
+    root_path=path,
+    structure_instance=struc_nace,
+    train_df=train_df,
+    test_df=test_df,
+    preprocess=preprocess_text
+)
+
+ft_trainer.train()
+```
+## Evaluate model
+```{python}
+eval_dict = ft_trainer.evaluate(
+    get_curve =False
+)
+```

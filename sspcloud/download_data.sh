@@ -22,6 +22,7 @@ FILES=(
   "s3sspcloud/projet-aiml4os-wp10/NorwayData/test_norwaydata_2026-01-13.parquet"
   "s3sspcloud/andresjp/WP10-Statcodgen_tutorial/NACErev21_explanatory_notes.csv"
   "s3sspcloud/andresjp/WP10-Statcodgen_tutorial/NACErev21_structure.xlsx"
+  "s3sspcloud/andresjp/WP10-Statcodgen_tutorial/sample_index_entries nb.xlsx"
 )
 
 # Function to download with retry

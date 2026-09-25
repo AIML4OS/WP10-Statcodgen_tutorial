@@ -5,6 +5,7 @@ project:
     - notebooks/notebook1.qmd
     - notebooks/notebook2.qmd
     - notebooks/notebook3.qmd
+    - notebooks/notebook4.qmd
 
 website:
   page-navigation: true
