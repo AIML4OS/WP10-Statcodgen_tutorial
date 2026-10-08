@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+export PATH="$HOME/minio-binaries:$PATH"
 echo "Executing the download_data.sh script"
 
 # === Description ===

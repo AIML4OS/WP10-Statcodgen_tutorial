@@ -82,11 +82,9 @@ ft_trainer = CodifierFastText(
     preprocess=preprocess_text
 )
 
-ft_trainer.train()
+#ft_trainer.train()
 ```
 ## Evaluate model
 ```{python}
-eval_dict = ft_trainer.evaluate(
-    get_curve =False
-)
+#eval_dict = ft_trainer.evaluate(get_curve =False)
 ```
