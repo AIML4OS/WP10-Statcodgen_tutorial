@@ -18,13 +18,14 @@ from pathlib import Path
 import pandas as pd
 from statcodgen import ProcessNACENB
 from statcodgen import OnyxiaSyntDataGenerator
+import os
 
 path = Path.home()/"work"/"data"
 exp_notes_n = "NACErev21_explanatory_notes.csv"
 train_data = "train_norwaydata_2026-01-13.parquet"
 
 model = "qwen3-6-35b-moe"
-YOUR_API_KEY = "" # put your SSPCloud api key
+API_KEY = os.environ["API_KEY"]
 
 ### First generate de dict for Nace (onli divisions)
 nace_explanatory_notes_df = pd.read_csv(
@@ -64,7 +65,7 @@ nace_nb_dict = process_nb.get_dict_data()
 ### Finally we use OnyxiaSyntDataGenerator for generate the ZeroGen data
 generator = OnyxiaSyntDataGenerator(
     root=path,  # Project root (must contain the ./input/ directory with all .json templates)
-    api_key=YOUR_API_KEY,  # Onyxia API key
+    api_key=API_KEY,  # Onyxia API key
     model=model,  # Available Onyxia model name
     label_contents_map_dict=nace_nb_dict,
 
@@ -99,7 +100,7 @@ class DummySyntDataGenerator(SyntDataGenerator):
 
 generator = DummySyntDataGenerator(
     root=path,  # Project root (must contain the ./input/ directory with all .json templates)
-    api_key=YOUR_API_KEY,  # Onyxia API key
+    api_key=API_KEY,  # Onyxia API key
     model=model,  # Available Onyxia model name
     label_contents_map_dict=nace_nb_dict,
 

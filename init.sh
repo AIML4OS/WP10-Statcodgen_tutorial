@@ -1,4 +1,9 @@
 #!/bin/bash
+# Check that the API key is set
+if [ -z "${API_KEY:-}" ]; then
+    echo "Error: API_KEY is not set."
+    exit 1
+fi
 
 # Get the name of the repo
 export MY_REPO=$(ls -d "/home/onyxia/work"/*/ | head -n 1 | xargs basename)

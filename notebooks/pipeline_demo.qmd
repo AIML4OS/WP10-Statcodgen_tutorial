@@ -4,22 +4,28 @@ format: ipynb
 jupyter: python3
 ---
 
-## Objetive
+## Objective
+
 This demo shows how to build a complete pipeline to generate synthetic training data using a ZeroGen approach and train a classification model, starting from the classification’s explanatory notes.
 
 To demonstrate the tool’s multilingual capabilities, we will train a model to classify Norwegian text using synthetic data generated from English prompts and Spanish explanatory notes.
 
-This is a demonstration, so the model will classify texts into just three class-level categories.
-## Avaliable data
-For this classification problem we have the next avaliable data.
-- **"organic" train and test data**: A set of administrative records from the norwiang institutios
-- **spanish structure and explanatory notes in spanish**
-- **Norweiang index based test set**
+For this demonstration, classification is limited to three class-level categories.
+
+### Available data
+
+The following data are available for this classification task:
+
+- **Real-world training and test data:** Administrative records from Norwegian institutions.
+- **Classification structure and explanatory notes:** Both available in Spanish.
+- **Norwegian index-based test set:** A test set constructed from Norwegian classification index entries.
+
 ## DEMO
 ```{python}
 from pathlib import Path
 import pandas as pd
 from pprint import pprint
+import os
 
 from statcodgen import Structured
 from statcodgen import CodifierFastText
@@ -63,6 +69,7 @@ train_df = train_df[
 train_df["nace_21_code"] = train_df["nace_21_code"].apply(
     lambda c: c.replace(".", "")
 )
+
 #### PREPARE TEST
 test_df["nace_21_code"] = test_df["nace_21_code"].apply(
     lambda c: c.replace(".", "")
@@ -122,22 +129,17 @@ ft_codifier.train()
 metrics = ft_codifier.evaluate(get_curve=False, k=2)
 metrics_id = ft_codifier.evaluate(get_curve=False, source="ID", k=2)
 metrics_ood = ft_codifier.evaluate(get_curve=False, source="OOD", k=2)
-
-
-print("\nMETRICS FOR ALL TEST SET")
-pprint(metrics["Class"])
-print("\nMETRICS FOR ID TEST SET")
-pprint(metrics_id["Class"])
-print("\nMETRICS FOR OOD TEST SET")
-pprint(metrics_ood["Class"])
 ```
 
 ### Prepare a ZeroGem train set
 ```{python}
 #### PREPARE DICTIONARY WITH EXPLANATORY NOTES AND EXAMPLES
+sample_nace_exp_notes_df = nace_exp_notes_df[
+    nace_exp_notes_df.COD.isin(codes)
+]
+
 process_nb = ProcessNACENB(
-    notes_df=nace_exp_notes_df,
-    sample=3,  # Take only three classes
+    notes_df=sample_nace_exp_notes_df,
     random_state=23,  # For reproducibility
     examples_df=train_df,  # Initially use the index to extract keywords
     n_examples=4  # Number of real examples and keyword-based examples
@@ -154,10 +156,9 @@ process_nb.set_examples(
 
 nace_nb_dict = process_nb.get_dict_data()
 print("DATA DICT")
-pprint(nace_nb_dict["1626"])
 ##### SET OnyxiaSyntDataGenerator
-API_KEY = "sk-44fee8794a2b4e87b94b4e9e073bebf5"
 model = "qwen3-6-35b-moe"
+API_KEY = os.environ["API_KEY"]
 
 generator = OnyxiaSyntDataGenerator(
     root=path,  # Project root (must contain the ./input/ directory with all .json templates)
@@ -197,4 +198,41 @@ for intro, task, leng, eg in all_task:
     )
     generator.eg_strategy = eg
     synt_df = generator.get_synt_data_df()
-    synt_train_df=pd.concat([synt_train_df, synt_df])
+    synt_train_df = pd.concat([synt_train_df, synt_df])
+```
+
+### Train a model with all data and only synt data
+```{python}
+synt_train_df.columns = ['nace_21_code', 'company_activity']
+all_sample_train_df = pd.concat([sample_train_df, synt_train_df])
+
+#### TRAIN WITH ALL DATA
+ft_codifier.train_df = ft_codifier.get_train_dataset(all_sample_train_df, "train")
+ft_codifier.train()
+metrics_all_data = ft_codifier.evaluate(get_curve=False)
+metrics_all_data_id = ft_codifier.evaluate(get_curve=False, source="ID")
+metrics_all_data_ood = ft_codifier.evaluate(get_curve=False, source="OOD")
+
+### TRAIN WITH SYNT DATA
+ft_codifier.train_df = ft_codifier.get_train_dataset(synt_train_df, "train")
+ft_codifier.train()
+metrics_synt_data = ft_codifier.evaluate(get_curve=False, k=2)
+metrics_synt_data_id = ft_codifier.evaluate(get_curve=False, source="ID", k=2)
+metrics_synt_data_ood = ft_codifier.evaluate(get_curve=False, source="OOD", k=2)
+```
+
+### Compare metrics
+```{python}
+print("\nMETRICS FOR ALL TEST SET")
+print("organic:", metrics["Class"]['accuracy'])
+print("all_data:", metrics_all_data["Class"]['accuracy'])
+print("synt_data:", metrics_synt_data["Class"]['accuracy'])
+print("\nMETRICS FOR ID TEST SET")
+print("organic:", metrics_id["Class"]['accuracy'])
+print("all_data:", metrics_all_data_id["Class"]['accuracy'])
+print("synt_data:", metrics_synt_data_id["Class"]['accuracy'])
+print("\nMETRICS FOR OOD TEST SET")
+print("organic:", metrics_ood["Class"]['accuracy'])
+print("all_data:", metrics_all_data_ood["Class"]['accuracy'])
+print("synt_data:", metrics_synt_data_ood["Class"]['accuracy'])
+```
