@@ -1,5 +1,23 @@
-#!/usr/bin/env bash
+
+# Make the MinIO client available
 export PATH="$HOME/minio-binaries:$PATH"
+
+# Install it only if it is missing
+if ! command -v mc >/dev/null 2>&1; then
+    echo "Installing MinIO client..."
+    mkdir -p "$HOME/minio-binaries"
+
+    curl -fL \
+      "https://github.com/minio/mc/releases/download/RELEASE.2025-08-13T08-35-41Z/mc.linux-amd64.RELEASE.2025-08-13T08-35-41Z" \
+      -o "$HOME/minio-binaries/mc" || exit 1
+
+    chmod +x "$HOME/minio-binaries/mc" || exit 1
+fi
+
+# Stop immediately if the client cannot run
+mc --version || exit 1
+
+#!/usr/bin/env bash
 echo "Executing the download_data.sh script"
 
 # === Description ===
@@ -24,6 +42,7 @@ FILES=(
   "s3sspcloud/andresjp/WP10-Statcodgen_tutorial/NACErev21_explanatory_notes.csv"
   "s3sspcloud/andresjp/WP10-Statcodgen_tutorial/NACErev21_structure.xlsx"
   "s3sspcloud/andresjp/WP10-Statcodgen_tutorial/sample_index_entries nb.xlsx"
+  "s3sspcloud/andresjp/WP10-Statcodgen_tutorial/klassifikasjon-koder-3218-nb.csv"
 )
 
 # Function to download with retry
