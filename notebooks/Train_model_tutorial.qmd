@@ -52,7 +52,7 @@ test_df["nace_21_code"] = test_df["nace_21_code"].apply(
 )
 ```
 
-## Prepare stucutre a text prepoceser
+## Prepare the structure and text preprocessing function
 ```{python}
 # Prepare strucuture instance
 class StruturedNACE(Structured):
@@ -72,6 +72,7 @@ def preprocess_text(t):
         t = ""
     return t.lower()
 ```
+
 ## Train model
 ```{python}
 ft_trainer = CodifierFastText(
