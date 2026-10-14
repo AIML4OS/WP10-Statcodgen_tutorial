@@ -12,6 +12,7 @@ dependencies = [
     "matplotlib>=3.10.3",
     "pandas>=2.3.0",
     "polars>=1.30.0",
+    "python-dotenv>=1.2.4",
     "statcodgen",
 ]
 
