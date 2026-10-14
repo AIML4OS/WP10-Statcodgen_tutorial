@@ -5,7 +5,7 @@ jupyter: python3
 ---
 
 ## Objetive
-Learn to use synt data maker
+Learn to use SyntDataGenerator.
  
 ## Generate Synthetic Data for Your Classification
 
@@ -92,8 +92,8 @@ generator = OnyxiaSyntDataGenerator(
     eg_filename="static_examples.json"  # Filename for static examples (if used)
 )
 
-zero_gen_df = generator.get_synt_data_df()
-zero_gen_df.head()
+# zero_gen_df = generator.get_synt_data_df()
+# zero_gen_df.head()
 ```
 
 You can adapt the code to your API by subclassing SyntDataGenerator and implementing the API call method.

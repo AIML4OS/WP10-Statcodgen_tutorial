@@ -1,5 +1,5 @@
 ---
-title: "Lear to use PromptMaker"
+title: "Learn to use PromptMaker"
 format: ipynb
 jupyter: python3
 ---

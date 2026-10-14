@@ -1,11 +1,11 @@
 ---
-title: "Use Strucutred"
+title: "Use Structured"
 format: ipynb
 jupyter: python3
 ---
 
 ## Objective
-In this chapter, we will learn how to prepare a Structure instance for our target classification standard.
+In this notebook, we will learn how to prepare a Structure instance for our target classification standard.
 
 
 ## Create a subclass Structure for your classification.
