@@ -1,8 +1,8 @@
-# <img height="18" width="18" src="https://cdn.simpleicons.org/python/00ccff99" /> Cluster X - Pipeline Name
+# <img height="18" width="18" src="https://cdn.simpleicons.org/python/00ccff99" /> Cluster 1 - Statcodgen Pipeline
 
 ## Goal
 
-This repository demonstrates how to use the [statcodgen libary](https://github.com/AIML4OS/WP10_Cluster1_StatCodGen)
+This repository demonstrates how to use the [statcodgen library](https://github.com/AIML4OS/WP10_Cluster1_StatCodGen)
 
 This work was carried out within Work Package 10 "Text-to-Code" (WP10) of the AIMLL4OS project, and more specifically within the Cluster 1.
 
@@ -27,6 +27,6 @@ This repository follows the AIML4OS [template](https://aiml4os.github.io/trainin
 
 It demonstrates the work carried out within WP10 and its cluster through a runnable example, linked to an SSP-Cloud service with a toy dataset and all dependencies preconfigured.
 
-This example use a Norwegian dataset, described [this documentation](https://github.com/AIML4OS/WP10/tree/main/NorwayTestData), together with the Spanish-language explanatory notes for NACE Rev. 2.1.
+This example use a Norwegian dataset, described in [this documentation](https://github.com/AIML4OS/WP10/tree/main/NorwayTestData), together with the Spanish-language explanatory notes for NACE Rev. 2.1.
 
 To run the example interactively, render pipeline_demo.qmd as a Jupyter notebook (.ipynb), open the generated notebook in VS Code on SSPCloud, and execute its cells in order.
