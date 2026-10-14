@@ -24,13 +24,22 @@ The following data are available for this classification task:
 ```{python}
 from pathlib import Path
 import pandas as pd
-from pprint import pprint
 import os
+from dotenv import load_dotenv
 
 from statcodgen import Structured
 from statcodgen import CodifierFastText
 from statcodgen import OnyxiaSyntDataGenerator
 from statcodgen import ProcessNACENB
+```
+
+```{python}
+# LOAD apy_key
+load_dotenv()
+if os.getenv("APY_KEY") is not None:
+    print("APY_KEY setted")
+else:
+    print("set APY_KEY in .env")
 ```
 
 ### Prepare data

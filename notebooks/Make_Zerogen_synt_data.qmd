@@ -19,7 +19,17 @@ import pandas as pd
 from statcodgen import ProcessNACENB
 from statcodgen import OnyxiaSyntDataGenerator
 import os
+from dotenv import load_dotenv
 
+# LOAD apy_key
+load_dotenv()
+if os.getenv("APY_KEY") is not None:
+    print("APY_KEY setted")
+else:
+    print("set APY_KEY in .env")
+```
+
+```{python}
 path = Path.home()/"work"/"data"
 exp_notes_n = "NACErev21_explanatory_notes.csv"
 train_data = "train_norwaydata_2026-01-13.parquet"
