@@ -17,7 +17,7 @@ For this demonstration, classification is limited to three class-level categorie
 The following data are available for this classification task:
 
 - **Real-world training and test data:** Administrative records from Norwegian institutions.
-- **Classification structure and explanatory notes:** Both available in Spanish.
+- **Classification structure and explanatory notes:** Both available in spanish and norwegian.
 - **Norwegian index-based test set:** A test set constructed from Norwegian classification index entries.
 
 ## DEMO
@@ -34,7 +34,7 @@ from statcodgen import ProcessNACENB
 ```
 
 ```{python}
-# LOAD apy_key
+#### LOAD APY_KEY
 load_dotenv()
 if os.getenv("APY_KEY") is not None:
     print("APY_KEY setted")
@@ -51,6 +51,7 @@ orgnaic_train_data = "train_norwaydata_2026-01-13.parquet"
 index_test_set = "sample_index_entries nb.xlsx"
 nace_esp_structure = "NACErev21_structure.xlsx"
 nace_esp_explanatory_notes = "NACErev21_explanatory_notes.csv"
+nace_ng_explanatory_notes = "klassifikasjon-koder-3218-nb.csv"
 
 nace_stru_df = pd.read_excel(
     path/nace_esp_structure,
@@ -60,22 +61,32 @@ nace_exp_notes_df = pd.read_csv(
     path/nace_esp_explanatory_notes,
     dtype=str
 )
+nace_ng_notes_df = pd.read_csv(
+    path/nace_ng_explanatory_notes,
+    dtype=str
+)
 train_df = pd.read_parquet(
     path/orgnaic_train_data
 )
 test_df = pd.read_parquet(
     path/organic_test_data
 )
-idex_test_df = pd.read_excel(
+index_test_df = pd.read_excel(
     path/index_test_set,
     dtype=str
 )
 
-#### PREPARE TRAIN
+#### PREPARE ORGANIC TRAIN
 train_df = train_df[
     ["nace_21_code", "company_activity"]
 ]
 train_df["nace_21_code"] = train_df["nace_21_code"].apply(
+    lambda c: c.replace(".", "")
+)
+
+#### PREPARE SYNT DATA
+nace_ng_notes_df = nace_ng_notes_df[["code", "name"]]
+nace_ng_notes_df["code"] = nace_ng_notes_df["code"].apply(
     lambda c: c.replace(".", "")
 )
 
@@ -88,16 +99,23 @@ test_df = test_df[
 ]
 test_df["source"] = "ID"
 
-idex_test_df["KODE"] = idex_test_df["KODE"].apply(
+index_test_df["KODE"] = index_test_df["KODE"].apply(
     lambda c: c.replace(".", "")
 )
-idex_test_df.columns = ["nace_21_code", "company_activity"]
-idex_test_df["source"] = "OOD"
+index_test_df.columns = ["nace_21_code", "company_activity"]
+index_test_df["source"] = "OOD"
 
-test_df = pd.concat([test_df, idex_test_df])
+test_df = pd.concat([test_df, index_test_df])
 
 ##### TAKE A SAMPLE
 codes = train_df["nace_21_code"].dropna().drop_duplicates().sample(n=3, random_state=42)
+sample_ng_notes = nace_ng_notes_df[nace_ng_notes_df["code"].isin(codes)]
+sample_ng_notes = sample_ng_notes.rename(
+    columns={
+        "code": "nace_21_code",
+        "name": "company_activity"
+    }
+)
 sample_train_df = train_df[train_df["nace_21_code"].isin(codes)].copy()
 sample_test_df = test_df[test_df["nace_21_code"].isin(codes)].copy()
 ```
@@ -128,7 +146,7 @@ def preprocess_text(t):
 ft_codifier = CodifierFastText(
     root_path=path,
     structure_instance=struc_nace,
-    train_df=sample_train_df,
+    train_df=pd.concat([sample_train_df, sample_ng_notes]),
     test_df=sample_test_df,
     preprocess=preprocess_text
 )
@@ -213,7 +231,9 @@ for intro, task, leng, eg in all_task:
 ### Train a model with all data and only synt data
 ```{python}
 synt_train_df.columns = ['nace_21_code', 'company_activity']
-all_sample_train_df = pd.concat([sample_train_df, synt_train_df])
+all_sample_train_df = pd.concat(
+    [sample_train_df, synt_train_df, sample_ng_notes]
+)
 
 #### TRAIN WITH ALL DATA
 ft_codifier.train_df = ft_codifier.get_train_dataset(all_sample_train_df, "train")
