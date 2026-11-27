@@ -1,0 +1,92 @@
+---
+title: "Use Structured"
+format: ipynb
+jupyter: python3
+---
+
+## Objective
+In this notebook, we will learn how to prepare a Structure instance for our target classification standard.
+
+
+## Create a subclass Structure for your classification.
+
+Statcogen’s Structured abstract class allows you to process hierarchical structures as a basis for training an NLP model. To adapt it to your classification, create a subclass that implements at least the get_level method. The following example shows how to create a subclass of Structured for the NACE classification. See the Structured.get_level documentation for guidance on implementing your own get_level method.
+
+```{python}
+from statcodgen import Structured
+
+print(help(Structured.get_level))
+
+
+class StructuredNACE(Structured):
+    """ Structured subclass for NACE """
+    def get_level(self, code):
+        code = code.replace(".", "")
+        return (len(code)-1)
+
+```
+
+## Load a standard classification from Eurostat’s RDF endpoint
+
+Eurostat provides an RDF endpoint for retrieving the structure and explanatory notes of various official statistical classifications. See the [SPARQL queries user guide](https://cros.ec.europa.eu/book-page/sparql-queries-user-guide) for more information. 
+
+The query must return a table with three columns: code, title, and parent code. See the following example.
+
+```{python}
+# Obtaining NACE rev.2 structure
+endpoint = "https://publications.europa.eu/webapi/rdf/sparql"
+
+query = """
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX : <http://data.europa.eu/ux2/nace2/>
+
+SELECT ?code ?label_es ?Broader_code WHERE {
+?s a skos:Concept ;
+  skos:inScheme :nace2 ;
+     skos:prefLabel ?label_es ;
+    skos:notation ?notation .
+    OPTIONAL {?s skos:broader ?BT.  
+      ?BT skos:notation ?BT_notation .}
+        FILTER(lang(?label_es)='es')
+    BIND (STR(?notation) as ?code)
+    BIND (STR(?BT_notation) as ?Broader_code)
+}order by ?code
+"""
+
+# See Stuctured docstring for know the Strcutured's parameters
+print(help(Structured))
+
+structure_nace = StructuredNACE(
+    source="sparql_endpoint", 
+    sparql_endpoint =endpoint,
+    query=query,
+    ensure_garbage_class=False,
+    names_l=["Section", "Division", "Group", "Class"]
+)
+```
+
+## Load a structure from a DataFrame
+
+You can also create a structure instance from a pandas DataFrame. The DataFrame must contain two columns: one with the codes and another with their corresponding titles. The column names do not matter, but the rows must be sorted in hierarchical order.
+
+```{python}
+import pandas as pd
+from pathlib import Path
+
+struc_path = Path.home()/"work" / "data" / "NACErev21_structure.xlsx"
+structure_df = pd.read_excel(
+    struc_path,
+    dtype="str"
+)
+
+print(structure_df.head())
+structure_nace = structure_nace = StructuredNACE(
+    source="dataframe",
+    structure_df=structure_df,
+    query=query,
+    ensure_garbage_class=False,
+    names_l=["Section", "Division", "Group", "Class"]
+)
+```
